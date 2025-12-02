@@ -60,6 +60,10 @@
       This means, by default, this will act like your wezterm config file, unless you want to add some lua in between there.
 
       `''${placeholder "out"}` is useable here and will point to the final wrapper derivation
+
+      You may also call `require('nix-info')(defaultval, "path", "to", "item")`
+
+      This will help prevent indexing errors when querying nested values which may not exist.
     '';
   };
 
@@ -79,7 +83,19 @@
         package.cpath = package.cpath .. ";" .. ${builtins.toJSON (genLuaCPathAbsStr luaEnv)}
       ''}
       local wezterm = require 'wezterm'
-      package.preload["nix-info"] = function() return ${lib.generators.toLua { } config.luaInfo} end
+      package.preload["nix-info"] = function()
+        return setmetatable(${lib.generators.toLua { } config.luaInfo}, {
+          __call = function(self, default, ...)
+            if select('#', ...) == 0 then return default end
+            local tbl = self;
+            for _, key in ipairs({...}) do
+              if type(tbl) ~= "table" then return default end
+              tbl = tbl[key]
+            end
+            return tbl
+          end
+        })
+      end
       return dofile(${builtins.toJSON config."wezterm.lua".path})
     '';
   config.drv.buildPhase = ''
