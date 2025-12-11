@@ -5,67 +5,58 @@
   ...
 }@args:
 let
-  descriptionsWithFiles = lib.mkOptionType {
-    name = "descriptionsWithFiles";
-    check =
-      (lib.types.either lib.types.str (
-        lib.types.submodule {
-          options = {
-            post = lib.mkOption {
-              type = lib.types.str;
-              default = "";
+  descriptionsWithFiles =
+    let
+      opts = {
+        pre = lib.mkOption {
+          type = lib.types.str;
+          default = "";
+          description = "header text";
+        };
+        post = lib.mkOption {
+          type = lib.types.str;
+          default = "";
+          description = "footer text";
+        };
+      };
+    in
+    lib.mkOptionType {
+      name = "descriptionsWithFiles";
+      check = (lib.types.either lib.types.str (lib.types.submodule { options = opts; })).check;
+      descriptionClass = "noun";
+      description = ''string or { pre ? "", post ? "" } (converted to `[ { pre, post, file } ]`)'';
+      merge =
+        loc: defs:
+        (lib.types.listOf (
+          lib.types.submodule {
+            options = opts // {
+              file = lib.mkOption {
+                type = wlib.types.stringable;
+                description = "file";
+              };
             };
-            pre = lib.mkOption {
-              type = lib.types.str;
-              default = "";
-            };
-          };
-        }
-      )).check;
-    descriptionClass = "noun";
-    description = ''string or { pre ? "", post ? "" } (converted to `[ { pre, post, file } ]`)'';
-    merge =
-      loc: defs:
-      (lib.types.listOf (
-        lib.types.submodule {
-          options = {
-            pre = lib.mkOption {
-              type = lib.types.str;
-              default = "";
-              description = "header text";
-            };
-            post = lib.mkOption {
-              type = lib.types.str;
-              default = "";
-              description = "footer text";
-            };
-            file = lib.mkOption {
-              type = wlib.types.stringable;
-              description = "file";
-            };
-          };
-        }
-      )).merge
-        loc
-        (
-          map (
-            v:
-            v
-            // {
-              value =
-                if builtins.isString v.value then
-                  [
-                    {
-                      inherit (v) file;
-                      pre = v.value;
-                    }
-                  ]
-                else
-                  [ (v.value // { inherit (v) file; }) ];
-            }
-          ) defs
-        );
-  };
+          }
+        )).merge
+          loc
+          (
+            map (
+              v:
+              v
+              // {
+                value =
+                  if builtins.isString v.value then
+                    [
+                      {
+                        inherit (v) file;
+                        pre = v.value;
+                      }
+                    ]
+                  else
+                    [ (v.value // { inherit (v) file; }) ];
+              }
+            ) defs
+          );
+    };
   maintainersWithFiles =
     let
       maintainer = lib.types.submodule (
