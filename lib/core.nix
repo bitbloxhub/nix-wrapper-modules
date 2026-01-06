@@ -3,6 +3,7 @@
   config,
   lib,
   wlib,
+  extendModules,
   ...
 }@args:
 let
@@ -462,48 +463,13 @@ in
         Returns the raw `lib.evalModules` result
       '';
       default =
-        module:
-        let
-          res = config.extendModules {
-            modules = if builtins.isList module then module else [ module ];
-          };
-        in
-        res;
+        module: extendModules { modules = if builtins.isList module then module else [ module ]; };
     };
     extendModules = lib.mkOption {
-      type = lib.types.mkOptionType {
-        # Internally, this option stores the `.extendModules` function at each re-evaluation.
-        # We only assign to this with `lib.mkOverride 0 (lib.mkOrder 0 res.extendModules)`
-        # merge is ordered latest first within the same priority (of both types of priority)
-        # This assures we can always override its value with the newest internal usage of this option.
-        name = "lastWins";
-        merge = loc: defs: (builtins.head defs).value;
-        check = lib.isFunction;
-        # Slightly lie to the user so the docs look good
-        description = "function that evaluates to a(n) raw value _(read only)_";
-        # It's basically true.
-        # Unless they evaluated this module with the regular nixpkgs.lib.evalModules,
-        # or set it with `lib.mkOverride 0 (lib.mkOrder 0 <something_bad>)`.
-        emptyValue = _: { };
-      };
-      apply =
-        f: args:
-        assert builtins.isAttrs args || throw "The argument to `.extendModules` must be an attrset";
-        let
-          res = f (
-            args
-            // {
-              modules = (args.modules or [ ]) ++ [
-                {
-                  _file = ./core.nix;
-                  extendModules = lib.mkOverride 0 (lib.mkOrder 0 res.extendModules);
-                }
-              ];
-            }
-          );
-        in
-        res // { inherit (res.config) extendModules; };
-      description = "Alias for `.extendModules` called by `config.eval`, `config.apply`, and `config.wrap`";
+      type = lib.types.functionTo lib.types.raw;
+      readOnly = true;
+      default = extendModules;
+      description = "Alias for `.extendModules` so that you can call it from outside of `wlib.types.subWrapperModule` types";
     };
     wrapper = lib.mkOption {
       type = lib.types.package;

@@ -32,13 +32,7 @@
           modules = [
             ./core.nix
           ]
-          ++ (evalArgs.modules or [ ])
-          ++ [
-            {
-              _file = ./core.nix;
-              extendModules = lib.mkOverride 0 (lib.mkOrder 0 res.extendModules);
-            }
-          ];
+          ++ (evalArgs.modules or [ ]);
           specialArgs = {
             inherit modulesPath;
           }
@@ -53,7 +47,7 @@
         ])
       );
     in
-    res // { inherit (res.config) extendModules; };
+    res;
 
   /**
     `evalModule = module: wlib.evalModules { modules = if builtins.isList module then module else [ module ]; };`

@@ -296,7 +296,7 @@
     let
       # This subWrapperModuleWith function is a modified version of submoduleWith from nixpkgs:
       # https://github.com/NixOS/nixpkgs/blob/91fe5b9c7e2fe8af311aa7cd0adb7d93b2d65bce/lib/types.nix#L1214
-      # it uses the wlib.evalModules function, instead of the nixpkgs one.
+      # it uses the wlib.evalModules function, instead of the nixpkgs one, and exposes an extra option.
       checkDefsForError =
         check: loc: defs:
         let
