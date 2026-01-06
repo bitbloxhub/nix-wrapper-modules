@@ -488,11 +488,12 @@ in
       };
       apply =
         f: args:
+        assert builtins.isAttrs args || throw "The argument to `.extendModules` must be an attrset";
         let
           res = f (
             args
             // {
-              modules = args.modules ++ [
+              modules = (args.modules or [ ]) ++ [
                 {
                   _file = ./core.nix;
                   extendModules = lib.mkOverride 0 (lib.mkOrder 0 res.extendModules);
