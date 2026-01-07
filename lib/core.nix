@@ -576,7 +576,7 @@ in
           symres =
             let
               initial = pkgs.callPackage passthru.configuration.symlinkScript (
-                builtins.removeAttrs args [ "config" ]
+                args
                 // {
                   config = passthru.configuration;
                   wrapper =
@@ -584,7 +584,7 @@ in
                       null
                     else
                       pkgs.callPackage passthru.configuration.wrapperFunction (
-                        builtins.removeAttrs args [ "config" ] // { config = passthru.configuration; }
+                        args // { config = passthru.configuration; }
                       );
                 }
               );
@@ -601,15 +601,7 @@ in
               throw errormsg;
         in
         pkgs.stdenv.mkDerivation (
-          (
-            if builtins.isString symres then
-              drvargs
-            else
-              builtins.removeAttrs symres [
-                "buildCommand"
-                "passthru"
-              ]
-          )
+          (if builtins.isString symres then drvargs else symres)
           // {
             passthru = (if builtins.isString symres then drvargs.passthru else symres.passthru or { }) // {
               wrap = passthru.configuration.wrap;
