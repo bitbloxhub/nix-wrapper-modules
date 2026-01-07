@@ -29,28 +29,22 @@ in
   */
   evalModules =
     evalArgs:
-    let
-      res = lib.evalModules (
-        {
-          modules = [
-            ./core.nix
-          ]
-          ++ (evalArgs.modules or [ ]);
-          specialArgs = {
-            inherit modulesPath;
-          }
-          // (evalArgs.specialArgs or { })
-          // {
-            inherit wlib;
-          };
+    lib.evalModules (
+      evalArgs
+      // {
+        modules = [
+          ./core.nix
+        ]
+        ++ (evalArgs.modules or [ ]);
+        specialArgs = {
+          inherit modulesPath;
         }
-        // (builtins.removeAttrs evalArgs [
-          "modules"
-          "specialArgs"
-        ])
-      );
-    in
-    res;
+        // (evalArgs.specialArgs or { })
+        // {
+          inherit wlib;
+        };
+      }
+    );
 
   /**
     `evalModule = module: wlib.evalModules { modules = lib.toList module; };`
