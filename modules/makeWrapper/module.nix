@@ -1,436 +1,433 @@
 {
-  config,
-  wlib,
-  lib,
-  pkgs,
-  ...
-}:
-{
-  options.argv0type = lib.mkOption {
-    type =
-      with lib.types;
-      either (enum [
-        "resolve"
-        "inherit"
-      ]) (functionTo str);
-    default = "inherit";
-    description = ''
-      `argv0` overrides this option if not null or unset
+  wrapperFunction = import ./.;
+  __functor =
+    self:
+    {
+      config,
+      wlib,
+      lib,
+      ...
+    }:
+    {
+      options.argv0type = lib.mkOption {
+        type =
+          with lib.types;
+          either (enum [
+            "resolve"
+            "inherit"
+          ]) (functionTo str);
+        default = "inherit";
+        description = ''
+          `argv0` overrides this option if not null or unset
 
-      Both `shell` and the `nix` implementations
-      ignore this option, as the shell always resolves `$0`
+          Both `shell` and the `nix` implementations
+          ignore this option, as the shell always resolves `$0`
 
-      However, the `binary` implementation will use this option
+          However, the `binary` implementation will use this option
 
-      Values:
+          Values:
 
-      - `"inherit"`:
+          - `"inherit"`:
 
-      The executable inherits argv0 from the wrapper.
-      Use instead of `--argv0 '$0'`.
+          The executable inherits argv0 from the wrapper.
+          Use instead of `--argv0 '$0'`.
 
-      - `"resolve"`:
+          - `"resolve"`:
 
-      If argv0 does not include a "/" character, resolve it against PATH.
+          If argv0 does not include a "/" character, resolve it against PATH.
 
-      - Function form: `str -> str`
+          - Function form: `str -> str`
 
-      This one works only in the nix implementation. The others will treat it as `inherit`
+          This one works only in the nix implementation. The others will treat it as `inherit`
 
-      Rather than calling exec, you get the command plus all its flags supplied,
-      and you can choose how to run it.
+          Rather than calling exec, you get the command plus all its flags supplied,
+          and you can choose how to run it.
 
-      e.g. `command_string: "eval \"$(''${command_string})\";`
+          e.g. `command_string: "eval \"$(''${command_string})\";`
 
-      It will also be added to the end of the overall `DAL`,
-      with the name `NIX_RUN_MAIN_PACKAGE`
+          It will also be added to the end of the overall `DAL`,
+          with the name `NIX_RUN_MAIN_PACKAGE`
 
-      Thus, you can make things run after it,
-      but by default it is still last.
-    '';
-  };
-  options.argv0 = lib.mkOption {
-    type = lib.types.nullOr lib.types.str;
-    default = null;
-    description = ''
-      --argv0 NAME
+          Thus, you can make things run after it,
+          but by default it is still last.
+        '';
+      };
+      options.argv0 = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = ''
+          --argv0 NAME
 
-      Set the name of the executed process to NAME.
-      If unset or null, defaults to EXECUTABLE.
+          Set the name of the executed process to NAME.
+          If unset or null, defaults to EXECUTABLE.
 
-      overrides the setting from `argv0type` if set.
-    '';
-  };
-  options.unsetVar = lib.mkOption {
-    type = wlib.types.dalWithEsc lib.types.str;
-    default = [ ];
-    description = ''
-      --unset VAR
+          overrides the setting from `argv0type` if set.
+        '';
+      };
+      options.unsetVar = lib.mkOption {
+        type = wlib.types.dalWithEsc lib.types.str;
+        default = [ ];
+        description = ''
+          --unset VAR
 
-      Remove VAR from the environment.
-    '';
-  };
-  options.runShell = lib.mkOption {
-    type = wlib.types.dalWithEsc wlib.types.stringable;
-    default = [ ];
-    description = ''
-      --run COMMAND
+          Remove VAR from the environment.
+        '';
+      };
+      options.runShell = lib.mkOption {
+        type = wlib.types.dalWithEsc wlib.types.stringable;
+        default = [ ];
+        description = ''
+          --run COMMAND
 
-      Run COMMAND before executing the main program.
+          Run COMMAND before executing the main program.
 
-      This option takes a list.
+          This option takes a list.
 
-      Any entry can instead be of type `{ data, name ? null, before ? [], after ? [], esc-fn ? null }`
+          Any entry can instead be of type `{ data, name ? null, before ? [], after ? [], esc-fn ? null }`
 
-      This will cause it to be added to the DAG.
+          This will cause it to be added to the DAG.
 
-      If no name is provided, it cannot be targeted.
-    '';
-  };
-  options.chdir = lib.mkOption {
-    type = wlib.types.dalWithEsc wlib.types.stringable;
-    default = [ ];
-    description = ''
-      --chdir DIR
+          If no name is provided, it cannot be targeted.
+        '';
+      };
+      options.chdir = lib.mkOption {
+        type = wlib.types.dalWithEsc wlib.types.stringable;
+        default = [ ];
+        description = ''
+          --chdir DIR
 
-      Change working directory before running the executable.
-      Use instead of `--run "cd DIR"`.
-    '';
-  };
-  options.addFlag = lib.mkOption {
-    type = wlib.types.wrapperFlag;
-    default = [ ];
-    example = [
-      "-v"
-      "-f"
-      [
-        "--config"
-        "\${./storePath.cfg}"
-      ]
-      [
-        "-s"
-        "idk"
-      ]
-    ];
-    description = ''
-      Wrapper for
+          Change working directory before running the executable.
+          Use instead of `--run "cd DIR"`.
+        '';
+      };
+      options.addFlag = lib.mkOption {
+        type = wlib.types.wrapperFlag;
+        default = [ ];
+        example = [
+          "-v"
+          "-f"
+          [
+            "--config"
+            "\${./storePath.cfg}"
+          ]
+          [
+            "-s"
+            "idk"
+          ]
+        ];
+        description = ''
+          Wrapper for
 
-      --add-flag ARG
+          --add-flag ARG
 
-      Prepend the single argument ARG to the invocation of the executable,
-      before any command-line arguments.
+          Prepend the single argument ARG to the invocation of the executable,
+          before any command-line arguments.
 
-      This option takes a list. To group them more strongly,
-      option may take a list of lists as well.
+          This option takes a list. To group them more strongly,
+          option may take a list of lists as well.
 
-      Any entry can instead be of type `{ data, name ? null, before ? [], after ? [], esc-fn ? null }`
+          Any entry can instead be of type `{ data, name ? null, before ? [], after ? [], esc-fn ? null }`
 
-      This will cause it to be added to the DAG.
+          This will cause it to be added to the DAG.
 
-      If no name is provided, it cannot be targeted.
-    '';
-  };
-  options.appendFlag = lib.mkOption {
-    type = wlib.types.wrapperFlag;
-    default = [ ];
-    example = [
-      "-v"
-      "-f"
-      [
-        "--config"
-        "\${./storePath.cfg}"
-      ]
-      [
-        "-s"
-        "idk"
-      ]
-    ];
-    description = ''
-      --append-flag ARG
+          If no name is provided, it cannot be targeted.
+        '';
+      };
+      options.appendFlag = lib.mkOption {
+        type = wlib.types.wrapperFlag;
+        default = [ ];
+        example = [
+          "-v"
+          "-f"
+          [
+            "--config"
+            "\${./storePath.cfg}"
+          ]
+          [
+            "-s"
+            "idk"
+          ]
+        ];
+        description = ''
+          --append-flag ARG
 
-      Append the single argument ARG to the invocation of the executable,
-      after any command-line arguments.
+          Append the single argument ARG to the invocation of the executable,
+          after any command-line arguments.
 
-      This option takes a list. To group them more strongly,
-      option may take a list of lists as well.
+          This option takes a list. To group them more strongly,
+          option may take a list of lists as well.
 
-      Any entry can instead be of type `{ data, name ? null, before ? [], after ? [], esc-fn ? null }`
+          Any entry can instead be of type `{ data, name ? null, before ? [], after ? [], esc-fn ? null }`
 
-      This will cause it to be added to the DAG.
+          This will cause it to be added to the DAG.
 
-      If no name is provided, it cannot be targeted.
-    '';
-  };
-  options.prefixVar = lib.mkOption {
-    type = wlib.types.wrapperFlags 3;
-    default = [ ];
-    example = [
-      [
-        "LD_LIBRARY_PATH"
-        ":"
-        "\${lib.makeLibraryPath (with pkgs; [ ... ])}"
-      ]
-      [
-        "PATH"
-        ":"
-        "\${lib.makeBinPath (with pkgs; [ ... ])}"
-      ]
-    ];
-    description = ''
-      --prefix ENV SEP VAL
+          If no name is provided, it cannot be targeted.
+        '';
+      };
+      options.prefixVar = lib.mkOption {
+        type = wlib.types.wrapperFlags 3;
+        default = [ ];
+        example = [
+          [
+            "LD_LIBRARY_PATH"
+            ":"
+            "\${lib.makeLibraryPath (with pkgs; [ ... ])}"
+          ]
+          [
+            "PATH"
+            ":"
+            "\${lib.makeBinPath (with pkgs; [ ... ])}"
+          ]
+        ];
+        description = ''
+          --prefix ENV SEP VAL
 
-      Prefix ENV with VAL, separated by SEP.
-    '';
-  };
-  options.suffixVar = lib.mkOption {
-    type = wlib.types.wrapperFlags 3;
-    default = [ ];
-    example = [
-      [
-        "LD_LIBRARY_PATH"
-        ":"
-        "\${lib.makeLibraryPath (with pkgs; [ ... ])}"
-      ]
-      [
-        "PATH"
-        ":"
-        "\${lib.makeBinPath (with pkgs; [ ... ])}"
-      ]
-    ];
-    description = ''
-      --suffix ENV SEP VAL
+          Prefix ENV with VAL, separated by SEP.
+        '';
+      };
+      options.suffixVar = lib.mkOption {
+        type = wlib.types.wrapperFlags 3;
+        default = [ ];
+        example = [
+          [
+            "LD_LIBRARY_PATH"
+            ":"
+            "\${lib.makeLibraryPath (with pkgs; [ ... ])}"
+          ]
+          [
+            "PATH"
+            ":"
+            "\${lib.makeBinPath (with pkgs; [ ... ])}"
+          ]
+        ];
+        description = ''
+          --suffix ENV SEP VAL
 
-      Suffix ENV with VAL, separated by SEP.
-    '';
-  };
-  options.prefixContent = lib.mkOption {
-    type = wlib.types.wrapperFlags 3;
-    default = [ ];
-    description = ''
-      ```nix
-      [
-        [ "ENV" "SEP" "FILE" ]
-      ]
-      ```
+          Suffix ENV with VAL, separated by SEP.
+        '';
+      };
+      options.prefixContent = lib.mkOption {
+        type = wlib.types.wrapperFlags 3;
+        default = [ ];
+        description = ''
+          ```nix
+          [
+            [ "ENV" "SEP" "FILE" ]
+          ]
+          ```
 
-      Prefix ENV with contents of FILE and SEP at build time.
+          Prefix ENV with contents of FILE and SEP at build time.
 
-      Also accepts sets like the other options
+          Also accepts sets like the other options
 
-      ```nix
-      [
-        [ "ENV" "SEP" "FILE" ]
-        { data = [ "ENV" "SEP" "FILE" ]; esc-fn = lib.escapeShellArg; /* name, before, after */ }
-      ]
-      ```
-    '';
-  };
-  options.suffixContent = lib.mkOption {
-    type = wlib.types.wrapperFlags 3;
-    default = [ ];
-    description = ''
-      ```nix
-      [
-        [ "ENV" "SEP" "FILE" ]
-      ]
-      ```
+          ```nix
+          [
+            [ "ENV" "SEP" "FILE" ]
+            { data = [ "ENV" "SEP" "FILE" ]; esc-fn = lib.escapeShellArg; /* name, before, after */ }
+          ]
+          ```
+        '';
+      };
+      options.suffixContent = lib.mkOption {
+        type = wlib.types.wrapperFlags 3;
+        default = [ ];
+        description = ''
+          ```nix
+          [
+            [ "ENV" "SEP" "FILE" ]
+          ]
+          ```
 
-      Suffix ENV with SEP and then the contents of FILE at build time.
+          Suffix ENV with SEP and then the contents of FILE at build time.
 
-      Also accepts sets like the other options
+          Also accepts sets like the other options
 
-      ```nix
-      [
-        [ "ENV" "SEP" "FILE" ]
-        { data = [ "ENV" "SEP" "FILE" ]; esc-fn = lib.escapeShellArg; /* name, before, after */ }
-      ]
-      ```
-    '';
-  };
-  options.flags = lib.mkOption {
-    type = (import ./genArgsFromFlags.nix { inherit lib wlib; }).flagDag;
-    default = { };
-    example = {
-      "--config" = "\${./nixPath}";
+          ```nix
+          [
+            [ "ENV" "SEP" "FILE" ]
+            { data = [ "ENV" "SEP" "FILE" ]; esc-fn = lib.escapeShellArg; /* name, before, after */ }
+          ]
+          ```
+        '';
+      };
+      options.flags = lib.mkOption {
+        type = (import ./genArgsFromFlags.nix { inherit lib wlib; }).flagDag;
+        default = { };
+        example = {
+          "--config" = "\${./nixPath}";
+        };
+        description = ''
+          Flags to pass to the wrapper.
+          The key is the flag name, the value is the flag value.
+          If the value is true, the flag will be passed without a value.
+          If the value is false or null, the flag will not be passed.
+          If the value is a list, the flag will be passed multiple times with each value.
+
+          This option takes a set.
+
+          Any entry can instead be of type `{ data, before ? [], after ? [], esc-fn ? null, sep ? null }`
+
+          The `sep` field may be used to override the value of `config.flagSeparator`
+
+          This will cause it to be added to the DAG,
+          which will cause the resulting wrapper argument to be sorted accordingly
+        '';
+      };
+      options.flagSeparator = lib.mkOption {
+        type = lib.types.str;
+        default = " ";
+        description = ''
+          Separator between flag names and values when generating args from flags.
+          `" "` for `--flag value` or `"="` for `--flag=value`
+        '';
+      };
+      options.extraPackages = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [ ];
+        description = ''
+          Additional packages to add to the wrapper's runtime PATH.
+          This is useful if the wrapped program needs additional libraries or tools to function correctly.
+
+          Adds all its entries to the DAG under the name `NIX_PATH_ADDITIONS`
+        '';
+      };
+      options.runtimeLibraries = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [ ];
+        description = ''
+          Additional libraries to add to the wrapper's runtime LD_LIBRARY_PATH.
+          This is useful if the wrapped program needs additional libraries or tools to function correctly.
+
+          Adds all its entries to the DAG under the name `NIX_LIB_ADDITIONS`
+        '';
+      };
+      options.env = lib.mkOption {
+        type = wlib.types.dagWithEsc wlib.types.stringable;
+        default = { };
+        example = {
+          "XDG_DATA_HOME" = "/somewhere/on/your/machine";
+        };
+        description = ''
+          Environment variables to set in the wrapper.
+
+          This option takes a set.
+
+          Any entry can instead be of type `{ data, before ? [], after ? [], esc-fn ? null }`
+
+          This will cause it to be added to the DAG,
+          which will cause the resulting wrapper argument to be sorted accordingly
+        '';
+      };
+      options.envDefault = lib.mkOption {
+        type = wlib.types.dagWithEsc wlib.types.stringable;
+        default = { };
+        example = {
+          "XDG_DATA_HOME" = "/only/if/not/set";
+        };
+        description = ''
+          Environment variables to set in the wrapper.
+
+          Like env, but only adds the variable if not already set in the environment.
+
+          This option takes a set.
+
+          Any entry can instead be of type `{ data, before ? [], after ? [], esc-fn ? null }`
+
+          This will cause it to be added to the DAG,
+          which will cause the resulting wrapper argument to be sorted accordingly
+        '';
+      };
+      options.escapingFunction = lib.mkOption {
+        type = lib.types.functionTo lib.types.str;
+        default = lib.escapeShellArg;
+        defaultText = "lib.escapeShellArg";
+        description = ''
+          The function to use to escape shell values
+
+          Caution: When using `shell` or `binary` implementations,
+          these will be expanded at BUILD time.
+
+          You should probably leave this as is when using either of those implementations.
+
+          However, when using the `nix` implementation, they will expand at runtime!
+          Which means `wlib.escapeShellArgWithEnv` may prove to be a useful substitute!
+        '';
+      };
+      options.wrapperImplementation = lib.mkOption {
+        type = lib.types.enum [
+          "nix"
+          "shell"
+          "binary"
+        ];
+        default = "nix";
+        description = ''
+          the `nix` implementation is the default
+
+          It makes the `escapingFunction` most relevant.
+
+          This is because the `shell` and `binary` implementations
+          use `pkgs.makeWrapper` or `pkgs.makeBinaryWrapper`,
+          and arguments to these functions are passed at BUILD time.
+
+          So, generally, when not using the nix implementation,
+          you should always prefer to have `escapingFunction`
+          set to `lib.escapeShellArg`.
+
+          However, if you ARE using the `nix` implementation,
+          using `wlib.escapeShellArgWithEnv` will allow you
+          to use `$` expansions, which will expand at runtime.
+
+          `binary` implementation is useful for programs
+          which are likely to be used in "shebangs",
+          as macos will not allow scripts to be used for these.
+
+          However, it is more limited. It does not have access to
+          `runShell`, `prefixContent`, and `suffixContent` options.
+
+          Chosing `binary` will thus cause values in those options to be ignored.
+        '';
+      };
+      config.wrapperFunction = lib.mkDefault (self.wrapperFunction or (import ./.));
+      config.suffixVar =
+        lib.optional (config.extraPackages != [ ]) {
+          name = "NIX_PATH_ADDITIONS";
+          data = [
+            "PATH"
+            ":"
+            "${lib.makeBinPath config.extraPackages}"
+          ];
+        }
+        ++ lib.optional (config.runtimeLibraries != [ ]) {
+          name = "NIX_LIB_ADDITIONS";
+          data = [
+            "LD_LIBRARY_PATH"
+            ":"
+            "${lib.makeLibraryPath config.runtimeLibraries}"
+          ];
+        };
+      config.meta.maintainers = lib.mkDefault [ wlib.maintainers.birdee ];
+      config.meta.description = lib.mkDefault ''
+        An implementation of the `makeWrapper` interface via type safe module options.
+
+        Allows you to choose one of several underlying implementations of the `makeWrapper` interface.
+
+        Imported by `wlib.modules.default`
+
+        Wherever the type includes `DAG` you can mentally substitute this with `attrsOf`
+
+        Wherever the type includes `DAL` or `DAG list` you can mentally substitute this with `listOf`
+
+        However they also take items of the form `{ data, name ? null, before ? [], after ? [] }`
+
+        This allows you to specify that values are added to the wrapper before or after another value.
+
+        The sorting occurs across ALL the options, thus you can target items in any `DAG` or `DAL` within this module from any other `DAG` or `DAL` option within this module.
+
+        The `DAG`/`DAL` entries in this module also accept an extra field, `esc-fn ? null`
+
+        If defined, it will be used instead of the value of `options.escapingFunction` to escape that value.
+
+        ---
+      '';
     };
-    description = ''
-      Flags to pass to the wrapper.
-      The key is the flag name, the value is the flag value.
-      If the value is true, the flag will be passed without a value.
-      If the value is false or null, the flag will not be passed.
-      If the value is a list, the flag will be passed multiple times with each value.
-
-      This option takes a set.
-
-      Any entry can instead be of type `{ data, before ? [], after ? [], esc-fn ? null, sep ? null }`
-
-      The `sep` field may be used to override the value of `config.flagSeparator`
-
-      This will cause it to be added to the DAG,
-      which will cause the resulting wrapper argument to be sorted accordingly
-    '';
-  };
-  options.flagSeparator = lib.mkOption {
-    type = lib.types.str;
-    default = " ";
-    description = ''
-      Separator between flag names and values when generating args from flags.
-      `" "` for `--flag value` or `"="` for `--flag=value`
-    '';
-  };
-  options.extraPackages = lib.mkOption {
-    type = lib.types.listOf lib.types.package;
-    default = [ ];
-    description = ''
-      Additional packages to add to the wrapper's runtime PATH.
-      This is useful if the wrapped program needs additional libraries or tools to function correctly.
-
-      Adds all its entries to the DAG under the name `NIX_PATH_ADDITIONS`
-    '';
-  };
-  options.runtimeLibraries = lib.mkOption {
-    type = lib.types.listOf lib.types.package;
-    default = [ ];
-    description = ''
-      Additional libraries to add to the wrapper's runtime LD_LIBRARY_PATH.
-      This is useful if the wrapped program needs additional libraries or tools to function correctly.
-
-      Adds all its entries to the DAG under the name `NIX_LIB_ADDITIONS`
-    '';
-  };
-  options.env = lib.mkOption {
-    type = wlib.types.dagWithEsc wlib.types.stringable;
-    default = { };
-    example = {
-      "XDG_DATA_HOME" = "/somewhere/on/your/machine";
-    };
-    description = ''
-      Environment variables to set in the wrapper.
-
-      This option takes a set.
-
-      Any entry can instead be of type `{ data, before ? [], after ? [], esc-fn ? null }`
-
-      This will cause it to be added to the DAG,
-      which will cause the resulting wrapper argument to be sorted accordingly
-    '';
-  };
-  options.envDefault = lib.mkOption {
-    type = wlib.types.dagWithEsc wlib.types.stringable;
-    default = { };
-    example = {
-      "XDG_DATA_HOME" = "/only/if/not/set";
-    };
-    description = ''
-      Environment variables to set in the wrapper.
-
-      Like env, but only adds the variable if not already set in the environment.
-
-      This option takes a set.
-
-      Any entry can instead be of type `{ data, before ? [], after ? [], esc-fn ? null }`
-
-      This will cause it to be added to the DAG,
-      which will cause the resulting wrapper argument to be sorted accordingly
-    '';
-  };
-  options.wrapperImplementation = lib.mkOption {
-    type = lib.types.enum [
-      "nix"
-      "shell"
-      "binary"
-    ];
-    default = "nix";
-    description = ''
-      the `nix` implementation is the default
-
-      It makes the `escapingFunction` most relevant.
-
-      This is because the `shell` and `binary` implementations
-      use `pkgs.makeWrapper` or `pkgs.makeBinaryWrapper`,
-      and arguments to these functions are passed at BUILD time.
-
-      So, generally, when not using the nix implementation,
-      you should always prefer to have `escapingFunction`
-      set to `lib.escapeShellArg`.
-
-      However, if you ARE using the `nix` implementation,
-      using `wlib.escapeShellArgWithEnv` will allow you
-      to use `$` expansions, which will expand at runtime.
-
-      `binary` implementation is useful for programs
-      which are likely to be used in "shebangs",
-      as macos will not allow scripts to be used for these.
-
-      However, it is more limited. It does not have access to
-      `runShell`, `prefixContent`, and `suffixContent` options.
-
-      Chosing `binary` will thus cause values in those options to be ignored.
-    '';
-  };
-  options.escapingFunction = lib.mkOption {
-    type = lib.types.functionTo lib.types.str;
-    default = lib.escapeShellArg;
-    defaultText = "lib.escapeShellArg";
-    description = ''
-      The function to use to escape shell values
-
-      Caution: When using `shell` or `binary` implementations,
-      these will be expanded at BUILD time.
-
-      You should probably leave this as is when using either of those implementations.
-
-      However, when using the `nix` implementation, they will expand at runtime!
-      Which means `wlib.escapeShellArgWithEnv` may prove to be a useful substitute!
-    '';
-  };
-  config.suffixVar =
-    lib.optional (config.extraPackages != [ ]) {
-      name = "NIX_PATH_ADDITIONS";
-      data = [
-        "PATH"
-        ":"
-        "${lib.makeBinPath config.extraPackages}"
-      ];
-    }
-    ++ lib.optional (config.runtimeLibraries != [ ]) {
-      name = "NIX_LIB_ADDITIONS";
-      data = [
-        "LD_LIBRARY_PATH"
-        ":"
-        "${lib.makeLibraryPath config.runtimeLibraries}"
-      ];
-    };
-  config.drv.nativeBuildInputs =
-    lib.mkIf (config.wrapperImplementation == "shell" || config.wrapperImplementation == "binary")
-      [
-        (if config.wrapperImplementation == "shell" then pkgs.makeWrapper else pkgs.makeBinaryWrapper)
-      ];
-  config.wrapperFunction = lib.mkDefault (
-    import (if config.wrapperImplementation == "nix" then ./makeWrapperNix.nix else ./makeWrapper.nix)
-  );
-  config.meta.maintainers = lib.mkDefault [ wlib.maintainers.birdee ];
-  config.meta.description = lib.mkDefault ''
-    An implementation of the `makeWrapper` interface via type safe module options.
-
-    Allows you to choose one of several underlying implementations of the `makeWrapper` interface.
-
-    Imported by `wlib.modules.default`
-
-    Wherever the type includes `DAG` you can mentally substitute this with `attrsOf`
-
-    Wherever the type includes `DAL` or `DAG list` you can mentally substitute this with `listOf`
-
-    However they also take items of the form `{ data, name ? null, before ? [], after ? [] }`
-
-    This allows you to specify that values are added to the wrapper before or after another value.
-
-    The sorting occurs across ALL the options, thus you can target items in any `DAG` or `DAL` within this module from any other `DAG` or `DAL` option within this module.
-
-    The `DAG`/`DAL` entries in this module also accept an extra field, `esc-fn ? null`
-
-    If defined, it will be used instead of the value of `options.escapingFunction` to escape that value.
-
-    ---
-  '';
 }

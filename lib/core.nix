@@ -4,6 +4,8 @@
   lib,
   wlib,
   extendModules,
+  # NOTE: makes sure builderFunction and wrapperFunction get name from _module.args
+  name ? null,
   ...
 }@args:
 let

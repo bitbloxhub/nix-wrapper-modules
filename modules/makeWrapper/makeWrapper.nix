@@ -2,6 +2,9 @@
   config,
   wlib,
   lib,
+  makeWrapper,
+  makeBinaryWrapper,
+  dieHook,
   ...
 }:
 let
@@ -117,8 +120,16 @@ let
     ))
     lib.flatten
   ];
+
+  srcsetup = p: "source ${lib.escapeShellArg "${p}/nix-support/setup-hook"}";
 in
 if config.binName == "" then
   ""
 else
-  "makeWrapper ${baseArgs} ${builtins.concatStringsSep " " resArgs}"
+  ''
+    $(
+      ${srcsetup dieHook}
+      ${srcsetup (if config.wrapperImplementation == "shell" then makeWrapper else makeBinaryWrapper)}
+      makeWrapper ${baseArgs} ${builtins.concatStringsSep " " resArgs}
+    )
+  ''

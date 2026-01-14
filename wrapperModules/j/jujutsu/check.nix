@@ -26,6 +26,8 @@ pkgs.runCommand "jujutsu-test" { } ''
     echo "failed to list test email!"
     echo "wrapper contents for ${jujutsuWrapped}/bin/jj"
     cat "${jujutsuWrapped}/bin/jj"
+    cat "${jujutsuWrapped.configuration.env.JJ_CONFIG.data}"
+    "${jujutsuWrapped}/bin/jj" config list --user
     exit 1
   fi
   touch $out
